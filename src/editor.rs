@@ -27,7 +27,7 @@ impl Editor {
     /// 运行主方法
     pub fn run(&mut self) {
         Terminal::initialize().unwrap();
-        self.handle_args();
+        self.handle_args();     // 参数获取
         let result = self.repl();
         Terminal::terminate().unwrap();
         result.unwrap();
@@ -41,7 +41,7 @@ impl Editor {
                 break;
             }
             let event = read()?;
-            self.evaluate_event(&event)?;
+            self.evaluate_event(event)?;
         }
         Ok(())
     }
@@ -81,36 +81,46 @@ impl Editor {
     }
 
     /// 按键事件
-    fn evaluate_event(&mut self, event: &Event) -> Result<(), Error> {
-        if let Key(KeyEvent {
-            code,
-            modifiers,
-            kind: KeyEventKind::Press,
-            ..
-        }) = event
-        {
-            match code {
-                KeyCode::Char('d') if *modifiers == KeyModifiers::CONTROL => {
+    fn evaluate_event(&mut self, event: Event) -> Result<(), Error> {
+        match event {
+            Event::Key(KeyEvent{
+                code,
+                kind: KeyEventKind::Press,
+                modifiers,
+                ..
+            }) => match (code, modifiers){
+                (KeyCode::Char('d'), KeyModifiers::CONTROL) => {
                     self.should_quit = true;
                 }
-                KeyCode::Up
+
+                (
+                    KeyCode::Up
                 | KeyCode::Down
                 | KeyCode::Left
                 | KeyCode::Right
                 | KeyCode::PageDown
                 | KeyCode::PageUp
                 | KeyCode::End
-                | KeyCode::Home => {
-                    self.move_point(*code)?;
+                | KeyCode::Home,
+                _,) => {
+                    self.move_point(code)?;
                 }
                 _ => (),
-            }
+            },
+            Event::Resize(width_u16, height_u16 ) => {
+                #[allow(clippy::as_conversions)]
+                let height = height_u16 as usize;
+                #[allow(clippy::as_conversions)]
+                let width = width_u16 as usize;
+                self.view.resize(Size { height, width });
+            },
+            _ => (),
         }
         Ok(())
     }
 
     /// 刷新屏幕
-    fn refresh_screen(&self) -> Result<(), Error> {
+    fn refresh_screen(&mut self) -> Result<(), Error> {
         Terminal::hide_caret()?;
         Terminal::move_caret_to(Position::default())?;
         if self.should_quit {

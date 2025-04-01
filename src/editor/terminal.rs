@@ -5,7 +5,7 @@ use crossterm::{Command, queue};
 use std::io::{Error, Write, stdout};
 
 /// 大小
-#[derive(Clone, Copy)]
+#[derive(Default, Clone, Copy)]
 pub struct Size {
     pub height: usize,
     pub width: usize,
