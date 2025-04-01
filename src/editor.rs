@@ -8,6 +8,8 @@ use std::{cmp::min, io::Error};
 use terminal::{Position, Size, Terminal};
 use view::View;
 
+/// 此组件主要在不同的 UI 组件之间进行协调，传递信息
+
 #[derive(Clone, Copy, Default)]
 struct Location {
     x: usize,
@@ -18,12 +20,14 @@ struct Location {
 pub struct Editor {
     should_quit: bool,
     location: Location,
+    view: View,
 }
 
 impl Editor {
     /// 运行主方法
     pub fn run(&mut self) {
         Terminal::initialize().unwrap();
+        self.handle_args();
         let result = self.repl();
         Terminal::terminate().unwrap();
         result.unwrap();
@@ -113,7 +117,7 @@ impl Editor {
             Terminal::clear_screen()?;
             Terminal::print("Goodbye.\r\n")?;
         } else {
-            View::render()?;
+            self.view.render()?;
             Terminal::move_caret_to(Position {
                 col: self.location.x,
                 row: self.location.y,
@@ -122,5 +126,12 @@ impl Editor {
         Terminal::show_caret()?;
         Terminal::execute()?;
         Ok(())
+    }
+
+    fn handle_args(&mut self) {
+        let args: Vec<String> = std::env::args().collect();
+        if let Some(file_name) = args.get(1) {
+            self.view.load(file_name);
+        }
     }
 }
