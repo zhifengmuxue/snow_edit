@@ -1,7 +1,13 @@
-use super::terminal::{Size, Terminal};
 use std::env;
 mod buffer;
+mod line;
+mod location;
+use super::{
+    editorcommand::{Direction, EditorCommand},
+    terminal::{Position, Size, Terminal},
+};
 use buffer::Buffer;
+use location::Location;
 
 /// `View` 结构体负责管理文本的渲染和显示。
 /// 它从 `Editor` 接收与文本相关的事件（如字符按键、换行符），
@@ -18,18 +24,13 @@ pub struct View {
     needs_redraw: bool,
     /// 当前视图的尺寸（宽度和高度）。
     size: Size,
+    /// 当前光标的位置。
+    location: Location,
+    /// 滚动偏移量，用于确定视图的起始位置。
+    scroll_offset: Location,
 }
 
 impl View {
-    /// 调整视图的尺寸。
-    ///
-    /// # 参数
-    /// - `to`: 新的尺寸。
-    pub fn resize(&mut self, to: Size) {
-        self.size = to;
-        self.needs_redraw = true;
-    }
-
     /// 渲染单行文本。
     ///
     /// # 参数
@@ -37,7 +38,7 @@ impl View {
     /// - `line_text`: 要渲染的文本内容。
     fn render_line(at: usize, line_text: &str) {
         let result = Terminal::print_row(at, line_text);
-        debug_assert!(result.is_ok(), "Failed to render line ");
+        debug_assert!(result.is_ok(), "Fail to render line: {}", result.unwrap_err());
     }
 
     /// 渲染整个视图。
@@ -53,15 +54,13 @@ impl View {
         }
         #[allow(clippy::integer_division)]
         let vertical_center = height / 2;
+        let top = self.scroll_offset.y;
 
         for current_row in 0..height {
-            if let Some(line) = self.buffer.lines.get(current_row) {
-                let truncated_line = if line.len() >= width {
-                    &line[0..width]
-                } else {
-                    line
-                };
-                Self::render_line(current_row, truncated_line);
+            if let Some(line) = self.buffer.lines.get(current_row.saturating_add(top)) {
+                let left = self.scroll_offset.x;
+                let right = self.scroll_offset.x.saturating_add(width);
+                Self::render_line(current_row, &line.get(left..right));
             } else if current_row == vertical_center && self.buffer.is_empty() {
                 Self::render_line(current_row, &Self::build_welcome_message(width));
             } else {
@@ -94,6 +93,18 @@ impl View {
         full_message
     }
 
+    /// 处理编辑器命令。
+    ///
+    /// # 参数
+    /// - `command`: 要处理的命令。
+    pub fn handle_command(&mut self, command: EditorCommand) {
+        match command {
+            EditorCommand::Resize(size) => self.resize(size),
+            EditorCommand::Move(direction) => self.move_text_location(&direction),
+            EditorCommand::Quit => {}
+        }
+    }
+
     /// 加载文件内容到缓冲区。
     ///
     /// # 参数
@@ -103,6 +114,69 @@ impl View {
             self.buffer = buffer;
             self.needs_redraw = true;
         }
+    }
+
+    /// 获取当前光标的位置。
+    ///
+    /// # 返回值
+    /// 返回光标的绝对位置。
+    pub fn get_position(&self) -> Position {
+        self.location.subtract(&self.scroll_offset).into()
+    }
+
+    /// 根据方向移动光标位置。
+    ///
+    /// # 参数
+    /// - `direction`: 移动的方向。
+    fn move_text_location(&mut self, direction: &Direction) {
+        let Location { mut x, mut y } = self.location;
+        let Size { height, width } = self.size;
+        match direction {
+            Direction::Up => y = y.saturating_sub(1),
+            Direction::Down => y = y.saturating_add(1),
+            Direction::Left => x = x.saturating_sub(1),
+            Direction::Right => x = x.saturating_add(1),
+            Direction::PageUp => y = 0,
+            Direction::PageDown => y = height.saturating_sub(1),
+            Direction::Home => x = 0,
+            Direction::End => x = width.saturating_sub(1),
+        }
+        self.location = Location { x, y };
+        self.scroll_location_into_view();
+    }
+
+    /// 调整视图的尺寸。
+    ///
+    /// # 参数
+    /// - `to`: 新的尺寸。
+    fn resize(&mut self, to: Size) {
+        self.size = to;
+        self.scroll_location_into_view();
+        self.needs_redraw = true;
+    }
+
+    /// 确保光标位置在视图范围内。
+    fn scroll_location_into_view(&mut self) {
+        let Location { x, y } = self.location;
+        let Size { height, width } = self.size;
+        let mut offset_changed = false;
+
+        if y < self.scroll_offset.y {
+            self.scroll_offset.y = y;
+            offset_changed = true;
+        } else if y >= self.scroll_offset.y.saturating_add(height) {
+            self.scroll_offset.y = y.saturating_sub(height).saturating_add(1);
+            offset_changed = true;
+        }
+
+        if x < self.scroll_offset.x {
+            self.scroll_offset.x = x;
+            offset_changed = true;
+        } else if x >= self.scroll_offset.x.saturating_add(width) {
+            self.scroll_offset.x = x.saturating_sub(width).saturating_add(1);
+            offset_changed = true;
+        }
+        self.needs_redraw = offset_changed;
     }
 }
 
@@ -115,6 +189,8 @@ impl Default for View {
             buffer: Buffer::default(),
             needs_redraw: true,
             size: Terminal::size().unwrap_or_default(),
+            location: Location::default(),
+            scroll_offset: Location::default(),
         }
     }
 }

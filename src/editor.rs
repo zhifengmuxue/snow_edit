@@ -1,37 +1,24 @@
 mod terminal;
 mod view;
-use crossterm::event::{
-    Event, KeyCode, KeyEvent, 
-    KeyEventKind, KeyModifiers, read,
-};
+use crossterm::event::{Event, KeyEvent, KeyEventKind, read};
+use editorcommand::EditorCommand;
 use std::{
-    cmp::min,
     env,
     io::Error,
     panic::{set_hook, take_hook},
 };
-use terminal::{Position, Size, Terminal};
+use terminal::Terminal;
 use view::View;
+mod editorcommand;
 
 /// `Editor` 组件主要负责在不同的 UI 组件之间进行协调，
 /// 处理用户输入事件并更新视图。
-
-/// 表示光标的位置。
-#[derive(Clone, Copy, Default)]
-struct Location {
-    /// 光标的列位置。
-    x: usize,
-    /// 光标的行位置。
-    y: usize,
-}
 
 /// `Editor` 结构体是编辑器的核心，
 /// 包含光标位置、视图和退出标志等。
 pub struct Editor {
     /// 标志是否退出编辑器。
     should_quit: bool,
-    /// 当前光标的位置。
-    location: Location,
     /// 编辑器的视图，用于渲染内容。
     view: View,
 }
@@ -61,7 +48,6 @@ impl Editor {
 
         Ok(Self {
             should_quit: false,
-            location: Location::default(),
             view,
         })
     }
@@ -90,91 +76,39 @@ impl Editor {
         }
     }
 
-    /// 移动光标到指定位置。
-    ///
-    /// # 参数
-    /// - `key_code`: 表示移动方向的按键代码。
-    fn move_point(&mut self, key_code: KeyCode) {
-        let Location { mut x, mut y } = self.location;
-        let Size { height, width } = Terminal::size().unwrap_or_default();
-
-        // 根据按键代码更新光标位置。
-        match key_code {
-            KeyCode::Up => {
-                y = y.saturating_sub(1);
-            }
-            KeyCode::Down => {
-                y = min(height.saturating_sub(1), y.saturating_add(1));
-            }
-            KeyCode::Left => {
-                x = x.saturating_sub(1);
-            }
-            KeyCode::Right => {
-                x = min(width.saturating_sub(1), x.saturating_add(1));
-            }
-            KeyCode::PageUp => {
-                y = 0;
-            }
-            KeyCode::PageDown => {
-                y = height.saturating_sub(1);
-            }
-            KeyCode::Home => {
-                x = 0;
-            }
-            KeyCode::End => {
-                x = width.saturating_sub(1);
-            }
-            _ => (),
-        }
-
-        // 更新光标位置。
-        self.location = Location { x, y };
-    }
-
     /// 处理用户输入事件。
     ///
     /// # 参数
     /// - `event`: 用户输入事件。
+    #[allow(clippy::needless_pass_by_value)]
     fn evaluate_event(&mut self, event: Event) {
-        match event {
-            // 处理按键事件。
-            Event::Key(KeyEvent {
-                code,
-                kind: KeyEventKind::Press,
-                modifiers,
-                ..
-            }) => match (code, modifiers) {
-                // 如果按下 `Ctrl + D`，设置退出标志。
-                (KeyCode::Char('d'), KeyModifiers::CONTROL) => {
-                    self.should_quit = true;
-                }
+        let should_process = match &event {
+            Event::Key(KeyEvent { kind, .. }) => kind == &KeyEventKind::Press,
+            Event::Resize(_, _) => true,
+            _ => false,
+        };
 
-                // 处理光标移动相关的按键。
-                (
-                    KeyCode::Up
-                    | KeyCode::Down
-                    | KeyCode::Left
-                    | KeyCode::Right
-                    | KeyCode::PageDown
-                    | KeyCode::PageUp
-                    | KeyCode::End
-                    | KeyCode::Home,
-                    _,
-                ) => {
-                    self.move_point(code);
+        if should_process {
+            match EditorCommand::try_from(event) {
+                Ok(command) => {
+                    if matches!(command, EditorCommand::Quit) {
+                        self.should_quit = true;
+                    } else {
+                        self.view.handle_command(command);
+                    }
                 }
-                _ => (),
-            },
-
-            // 处理终端窗口大小调整事件。
-            Event::Resize(width_u16, height_u16) => {
-                #[allow(clippy::as_conversions)]
-                let height = height_u16 as usize;
-                #[allow(clippy::as_conversions)]
-                let width = width_u16 as usize;
-                self.view.resize(Size { height, width });
+                Err(err) => {
+                    #[cfg(debug_assertions)]
+                    {
+                        panic!("Could not process event: {err:?}")
+                    }
+                }
             }
-            _ => (),
+        } else {
+            #[cfg(debug_assertions)]
+            {
+                panic!("Received and discarded unsupported or non-press event.");
+            }
         }
     }
 
@@ -187,10 +121,7 @@ impl Editor {
         self.view.render();
 
         // 将光标移动到当前的位置。
-        let _ = Terminal::move_caret_to(Position {
-            col: self.location.x,
-            row: self.location.y,
-        });
+        let _ = Terminal::move_caret_to(self.view.get_position());
 
         // 显示光标并刷新终端。
         let _ = Terminal::show_caret();

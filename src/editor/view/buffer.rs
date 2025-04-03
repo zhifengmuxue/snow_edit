@@ -1,12 +1,14 @@
 use std::fs::read_to_string;
 use std::io::Error;
 
+use super::line::Line;
+
 /// `Buffer` 结构体用于存储文本内容。
 /// 它包含一个字符串向量，每个元素表示文本中的一行。
 #[derive(Default)]
 pub struct Buffer {
     /// 存储文本内容的行向量。
-    pub lines: Vec<String>,
+    pub lines: Vec<Line>,
 }
 
 impl Buffer {
@@ -24,7 +26,7 @@ impl Buffer {
 
         // 将文件内容按行分割并存储到 `lines` 向量中
         for value in contents.lines() {
-            lines.push(String::from(value));
+            lines.push(Line::from(value));
         }
 
         // 返回包含行数据的 `Buffer` 实例

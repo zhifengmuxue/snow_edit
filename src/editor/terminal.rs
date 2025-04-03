@@ -4,6 +4,7 @@ use crossterm::terminal::{disable_raw_mode, enable_raw_mode, size, Clear, ClearT
 use crossterm::{Command, queue};
 use std::io::{Error, Write, stdout};
 
+
 /// 表示终端的尺寸（宽度和高度）。
 #[derive(Default, Clone, Copy)]
 pub struct Size {
