@@ -34,4 +34,12 @@ impl Line {
         let end = cmp::min(range.end, self.string.len()); // 确保范围不超出字符串长度。
         self.string.get(start..end).unwrap_or_default().to_string()
     }
+
+    /// 获取行的长度。
+    ///
+    /// # 返回值
+    /// 返回行中字符的数量。
+    pub fn len(&self) -> usize{
+        self.string.len()
+    }
 }
