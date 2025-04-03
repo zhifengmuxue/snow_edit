@@ -23,6 +23,15 @@ pub struct Position {
     pub row: usize,
 }
 
+impl Position{
+    pub const fn saturating_sub(self, other: Self) -> Self{
+        Self{
+            row: self.row.saturating_sub(other.row),
+            col: self.col.saturating_sub(other.col), 
+        }
+    }
+}
+
 /// `Terminal` 结构体封装了终端的行为和操作。
 pub struct Terminal;
 

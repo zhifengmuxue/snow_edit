@@ -121,7 +121,7 @@ impl Editor {
         self.view.render();
 
         // 将光标移动到当前的位置。
-        let _ = Terminal::move_caret_to(self.view.get_position());
+        let _ = Terminal::move_caret_to(self.view.caret_position());
 
         // 显示光标并刷新终端。
         let _ = Terminal::show_caret();
