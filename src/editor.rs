@@ -22,9 +22,6 @@ pub struct Editor {
 
 impl Editor {
     /// 构造方法，用于创建一个新的 `Editor` 实例。
-    ///
-    /// # 返回值
-    /// 如果成功，返回 `Editor` 实例；如果失败，返回 `Error`。
     pub fn new() -> Result<Self, Error> {
         // 设置 panic 钩子，在程序崩溃时恢复终端状态。
         let current_hook = take_hook();
@@ -74,9 +71,6 @@ impl Editor {
     }
 
     /// 处理用户输入事件。
-    ///
-    /// # 参数
-    /// - `event`: 用户输入事件。
     #[allow(clippy::needless_pass_by_value)]
     fn evaluate_event(&mut self, event: Event) {
         let should_process = match &event {
@@ -86,19 +80,11 @@ impl Editor {
         };
 
         if should_process {
-            match EditorCommand::try_from(event) {
-                Ok(command) => {
-                    if matches!(command, EditorCommand::Quit) {
-                        self.should_quit = true;
-                    } else {
-                        self.view.handle_command(command);
-                    }
-                }
-                Err(err) => {
-                    #[cfg(debug_assertions)]
-                    {
-                        panic!("Could not process event: {err:?}")
-                    }
+            if let Ok(command) = EditorCommand::try_from(event) {
+                if matches!(command, EditorCommand::Quit){
+                    self.should_quit = true;
+                } else {
+                    self.view.handle_command(command);
                 }
             }
         } else {

@@ -1,5 +1,5 @@
-use std::env;
 use std::cmp::min;
+use std::env;
 mod buffer;
 mod line;
 use super::{
@@ -101,6 +101,7 @@ impl View {
             EditorCommand::Resize(size) => self.resize(size),
             EditorCommand::Move(direction) => self.move_text_location(&direction),
             EditorCommand::Quit => {}
+            EditorCommand::Insert(character) => self.insert_char(character),
         }
     }
 
@@ -115,6 +116,25 @@ impl View {
         self.size = to;
         self.scroll_text_location_into_view();
         self.needs_redraw = true;
+    }
+
+    fn insert_char(&mut self, character: char) {
+        let old_len = self
+            .buffer
+            .lines
+            .get(self.text_location.line_index)
+            .map_or(0, Line::grapheme_count);
+        self.buffer.insert_char(character, self.text_location);
+        let new_len = self
+            .buffer
+            .lines
+            .get(self.text_location.line_index)
+            .map_or(0, Line::grapheme_count);
+        let grapheme_delta = new_len.saturating_sub(old_len);
+        if grapheme_delta > 0 {
+            self.move_right();
+        }
+        self.needs_redraw = true
     }
 
     // ==================== 光标移动相关方法 ====================
@@ -195,7 +215,9 @@ impl View {
         } else {
             false
         };
-        self.needs_redraw = self.needs_redraw || offset_changed;
+        if offset_changed {
+            self.needs_redraw = true;
+        }
     }
 
     fn scroll_horizontally(&mut self, to: usize) {
@@ -209,7 +231,9 @@ impl View {
         } else {
             false
         };
-        self.needs_redraw = self.needs_redraw || offset_changed;
+        if offset_changed {
+            self.needs_redraw = true;
+        }
     }
 
     fn scroll_text_location_into_view(&mut self) {
@@ -249,8 +273,6 @@ impl View {
 }
 
 impl Default for View {
-    /// 创建一个默认的 `View` 实例。
-    ///
     /// 默认情况下，缓冲区为空，`needs_redraw` 为 `true`，尺寸为终端的当前大小。
     fn default() -> Self {
         Self {
