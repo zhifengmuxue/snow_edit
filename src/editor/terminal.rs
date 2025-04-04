@@ -4,7 +4,6 @@ use crossterm::terminal::{disable_raw_mode, enable_raw_mode, size, Clear, ClearT
 use crossterm::{Command, queue};
 use std::io::{Error, Write, stdout};
 
-
 /// 表示终端的尺寸（宽度和高度）。
 #[derive(Default, Clone, Copy)]
 pub struct Size {
@@ -23,11 +22,18 @@ pub struct Position {
     pub row: usize,
 }
 
-impl Position{
-    pub const fn saturating_sub(self, other: Self) -> Self{
-        Self{
+impl Position {
+    /// 计算两个位置的差值，结果不会为负数。
+    ///
+    /// # 参数
+    /// - `other`: 要减去的位置。
+    ///
+    /// # 返回值
+    /// 返回一个新的 `Position`，表示差值。
+    pub const fn saturating_sub(self, other: Self) -> Self {
+        Self {
             row: self.row.saturating_sub(other.row),
-            col: self.col.saturating_sub(other.col), 
+            col: self.col.saturating_sub(other.col),
         }
     }
 }
@@ -36,17 +42,7 @@ impl Position{
 pub struct Terminal;
 
 impl Terminal {
-    /// 终止终端，恢复到正常模式。
-    ///
-    /// # 返回值
-    /// 如果成功，返回 `Ok(())`；如果失败，返回 `Error`。
-    pub fn terminate() -> Result<(), Error> {
-        Self::leave_alternate_screen()?;
-        Self::show_caret()?;
-        Self::execute()?;
-        disable_raw_mode()?;
-        Ok(())
-    }
+    // ==================== 初始化和终止 ====================
 
     /// 初始化终端，进入原始模式并清理屏幕。
     ///
@@ -59,6 +55,20 @@ impl Terminal {
         Self::execute()?;
         Ok(())
     }
+
+    /// 终止终端，恢复到正常模式。
+    ///
+    /// # 返回值
+    /// 如果成功，返回 `Ok(())`；如果失败，返回 `Error`。
+    pub fn terminate() -> Result<(), Error> {
+        Self::leave_alternate_screen()?;
+        Self::show_caret()?;
+        Self::execute()?;
+        disable_raw_mode()?;
+        Ok(())
+    }
+
+    // ==================== 屏幕操作 ====================
 
     /// 清理整个屏幕。
     ///
@@ -78,6 +88,8 @@ impl Terminal {
         Ok(())
     }
 
+    // ==================== 光标操作 ====================
+
     /// 将光标移动到指定位置。
     ///
     /// # 参数
@@ -88,24 +100,6 @@ impl Terminal {
     pub fn move_caret_to(pos: Position) -> Result<(), Error> {
         #[allow(clippy::as_conversions, clippy::cast_possible_truncation)]
         Self::queue_command(MoveTo(pos.col as u16, pos.row as u16))?;
-        Ok(())
-    }
-
-    /// 进入替代屏幕。
-    ///
-    /// # 返回值
-    /// 如果成功，返回 `Ok(())`；如果失败，返回 `Error`。
-    pub fn enter_alternate_screen() -> Result<(), Error> {
-        Self::queue_command(EnterAlternateScreen)?;
-        Ok(())
-    }
-
-    /// 离开替代屏幕。
-    ///
-    /// # 返回值
-    /// 如果成功，返回 `Ok(())`；如果失败，返回 `Error`。
-    pub fn leave_alternate_screen() -> Result<(), Error> {
-        Self::queue_command(LeaveAlternateScreen)?;
         Ok(())
     }
 
@@ -126,6 +120,8 @@ impl Terminal {
         Self::queue_command(Show)?;
         Ok(())
     }
+
+    // ==================== 文本输出 ====================
 
     /// 输出字符串到终端。
     ///
@@ -154,6 +150,8 @@ impl Terminal {
         Ok(())
     }
 
+    // ==================== 尺寸获取 ====================
+
     /// 获取终端的尺寸（宽度和高度）。
     ///
     /// # 返回值
@@ -166,6 +164,8 @@ impl Terminal {
         let width = width_u16 as usize;
         Ok(Size { height, width })
     }
+
+    // ==================== 内部辅助方法 ====================
 
     /// 刷新终端，执行所有排队的命令。
     ///
@@ -185,6 +185,24 @@ impl Terminal {
     /// 如果成功，返回 `Ok(())`；如果失败，返回 `Error`。
     fn queue_command(command: impl Command) -> Result<(), Error> {
         queue!(stdout(), command)?;
+        Ok(())
+    }
+
+    /// 进入替代屏幕。
+    ///
+    /// # 返回值
+    /// 如果成功，返回 `Ok(())`；如果失败，返回 `Error`。
+    pub fn enter_alternate_screen() -> Result<(), Error> {
+        Self::queue_command(EnterAlternateScreen)?;
+        Ok(())
+    }
+
+    /// 离开替代屏幕。
+    ///
+    /// # 返回值
+    /// 如果成功，返回 `Ok(())`；如果失败，返回 `Error`。
+    pub fn leave_alternate_screen() -> Result<(), Error> {
+        Self::queue_command(LeaveAlternateScreen)?;
         Ok(())
     }
 }

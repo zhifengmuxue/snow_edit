@@ -40,7 +40,10 @@ impl Buffer {
     pub fn is_empty(&self) -> bool {
         self.lines.is_empty()
     }
-
+    /// 获取缓冲区的行数。
+    /// 
+    /// # 返回值
+    /// 返回缓冲区的行数。
     pub fn height(&self) -> usize {
         self.lines.len()
     }

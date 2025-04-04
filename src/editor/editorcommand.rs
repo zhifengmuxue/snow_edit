@@ -63,7 +63,7 @@ impl TryFrom<Event> for EditorCommand {
                 (KeyCode::Home, _) => Ok(Self::Move(Direction::Home)),
                 (KeyCode::End, _) => Ok(Self::Move(Direction::End)),
                 // 如果按键不支持，返回错误信息。
-                _ => Err(format!("Unsupported key event: {:?}", event)),
+                _ => Err(format!("Unsupported key event: {event:?}")),
             },
             // 处理终端窗口大小调整事件。
             Event::Resize(width_u16, height_u16) => {
@@ -74,7 +74,7 @@ impl TryFrom<Event> for EditorCommand {
                 Ok(Self::Resize(Size { height, width }))
             }
             // 如果事件类型不支持，返回错误信息。
-            _ => Err(format!("Unsupported event: {:?}", event)),
+            _ => Err(format!("Unsupported event: {event:?}")),
         }
     }
 }

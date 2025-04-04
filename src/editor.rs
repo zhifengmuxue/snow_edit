@@ -11,9 +11,6 @@ use terminal::Terminal;
 use view::View;
 mod editorcommand;
 
-/// `Editor` 组件主要负责在不同的 UI 组件之间进行协调，
-/// 处理用户输入事件并更新视图。
-
 /// `Editor` 结构体是编辑器的核心，
 /// 包含光标位置、视图和退出标志等。
 pub struct Editor {
