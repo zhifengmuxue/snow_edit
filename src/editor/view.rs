@@ -10,31 +10,22 @@ use buffer::Buffer;
 use line::Line;
 
 /// `View` 结构体负责管理文本的渲染和显示。
-/// 它从 `Editor` 接收与文本相关的事件（如字符按键、换行符），
-/// 并通过优化渲染逻辑提高效率。
 const NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Clone, Copy, Default)]
 pub struct Location {
-    /// 当前光标所在的字形索引。
-    pub grapheme_index: usize,
-    /// 当前光标所在的行索引。
-    pub line_index: usize,
+    pub grapheme_index: usize,          // 当前光标所在的字形索引。
+    pub line_index: usize,              // 当前光标所在的行索引。
 }
 
 /// `View` 结构体定义了编辑器的视图。
 pub struct View {
-    /// 当前缓冲区，存储文本内容。
-    buffer: Buffer,
-    /// 标记是否需要重新渲染。
-    needs_redraw: bool,
-    /// 当前视图的尺寸（宽度和高度）。
-    size: Size,
-    /// 当前光标的位置。
-    text_location: Location,
-    /// 滚动偏移量，用于确定视图的起始位置。
-    scroll_offset: Position,
+    buffer: Buffer,             // 当前缓冲区，存储文本内容。
+    needs_redraw: bool,         // 标记是否需要重新渲染。
+    size: Size,                 // 当前视图的尺寸（宽度和高度）。
+    text_location: Location,    // 当前光标的位置。
+    scroll_offset: Position,    // 滚动偏移量，用于确定视图的起始位置。
 }
 
 impl View {
@@ -103,7 +94,8 @@ impl View {
             EditorCommand::Quit => {}
             EditorCommand::Insert(character) => self.insert_char(character),
             EditorCommand::Delete => self.delete(),
-            EditorCommand::Backspace => self.backspace(),
+            EditorCommand::Backspace => self.delete_backward(),
+            EditorCommand::Enter => self.insert_newline(),
         }
     }
 
@@ -120,6 +112,7 @@ impl View {
         self.needs_redraw = true;
     }
 
+    /// 插入新字符。
     fn insert_char(&mut self, character: char) {
         let old_len = self
             .buffer
@@ -139,8 +132,14 @@ impl View {
         self.needs_redraw = true
     }
 
+    fn insert_newline(&mut self) {
+        self.buffer.insert_newline(self.text_location);
+        self.move_text_location(&Direction::Right);
+        self.needs_redraw = true;
+    }
+
     /// 删除光标左侧的字符。
-    fn backspace(&mut self) {
+    fn delete_backward(&mut self) {
         if self.text_location.line_index != 0 || self.text_location.grapheme_index != 0 {
             self.move_left();
             self.delete();

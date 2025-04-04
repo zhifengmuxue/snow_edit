@@ -13,9 +13,7 @@ mod editor;
 use editor::Editor;
 
 /// 程序的入口点。
-/// 创建一个 `Editor` 实例并运行主循环。
 fn main() {
     // 初始化编辑器并运行主循环。
-    // 如果初始化失败，程序会直接 panic。
     Editor::new().unwrap().run();
 }

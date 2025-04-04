@@ -6,14 +6,12 @@ use unicode_width::UnicodeWidthStr;
 /// 表示一个字形的宽度。
 #[derive(Clone, Copy)]
 enum GraphemeWidth {
-    /// 半宽字符（如 ASCII 字符）。
-    Half,
-    /// 全宽字符（如中文字符）。
-    Full,
+    Half,           // 半宽字符（如 ASCII 字符）。
+    Full,           // 全宽字符（如中文字符）。
 }
 
 impl GraphemeWidth {
-    /// 将当前宽度与另一个值相加，返回结果。
+    // 将当前宽度与另一个值相加，返回结果。
     const fn saturating_add(self, other: usize) -> usize {
         match self {
             Self::Full => other.saturating_add(2),
@@ -23,21 +21,16 @@ impl GraphemeWidth {
 }
 
 /// 表示一段文本片段。
-/// 每个片段包含一个字形及其渲染宽度和替代字符（如果有）。
 struct TextFragment {
-    /// 字形的实际内容。
-    grapheme: String,
-    /// 字形的渲染宽度。
-    rendered_width: GraphemeWidth,
-    /// 替代字符（用于不可见字符的显示）。
-    replacement: Option<char>,
+    grapheme: String,                   // 字形的实际内容。
+    rendered_width: GraphemeWidth,      // 字形的渲染宽度。
+    replacement: Option<char>,          // 替代字符（用于不可见字符的显示）。
 }
 
 /// `Line` 结构体表示文本中的一行。
-/// 它由多个 `TextFragment` 组成。
+#[derive(Default)]
 pub struct Line {
-    /// 文本片段的集合。
-    fragments: Vec<TextFragment>,
+    fragments: Vec<TextFragment>,   // 文本片段的集合。
 }
 
 impl Line {
@@ -72,6 +65,7 @@ impl Line {
             .collect()
     }
 
+    /// 替换不可见字符为替代字符。
     fn replace_character(for_str: &str) -> Option<char> {
         let width = for_str.width();
         match for_str {
@@ -141,25 +135,25 @@ impl Line {
     }
 
     /// 在指定位置插入一个字符。
-    pub fn insert_char(&mut self, character: char, grapheme_index: usize) {
+    pub fn insert_char(&mut self, character: char, at: usize) {
         let mut result = String::new();
         for (index, fragment) in self.fragments.iter().enumerate() {
-            if index == grapheme_index {
+            if index == at {
                 result.push(character);
             }
             result.push_str(&fragment.grapheme);
         }
-        if grapheme_index >= self.fragments.len() {
+        if at >= self.fragments.len() {
             result.push(character);
         }
         self.fragments = Self::str_to_fragments(&result);
     }
 
     /// 删除指定索引的字形。
-    pub fn delete(&mut self, grapheme_index: usize) {
+    pub fn delete(&mut self, at: usize) {
         let mut result = String::new();
         for (index, fragment) in self.fragments.iter().enumerate() {
-            if index != grapheme_index {
+            if index != at {
                 result.push_str(&fragment.grapheme);
             }
         }
@@ -171,6 +165,17 @@ impl Line {
         let mut concat = self.to_string();
         concat.push_str(&other.to_string());
         self.fragments = Self::str_to_fragments(&concat);
+    }
+
+    /// 分割两个line 
+    pub fn split(&mut self, at: usize) -> Self {
+        if at > self.fragments.len() {
+            return Self::default();
+        }
+        let remainder = self.fragments.split_off(at);
+        Self {
+            fragments: remainder,
+        }
     }
 }
 

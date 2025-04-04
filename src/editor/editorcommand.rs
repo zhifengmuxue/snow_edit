@@ -23,6 +23,7 @@ pub enum EditorCommand {
     Insert(char),
     Backspace,
     Delete,
+    Enter,
 }
 
 #[allow(clippy::as_conversions)]
@@ -55,6 +56,9 @@ impl TryFrom<Event> for EditorCommand {
                 // 如果按下退格键，返回删除命令。
                 (KeyCode::Backspace, _) => Ok(Self::Backspace),
                 (KeyCode::Delete, _) => Ok(Self::Delete),
+                // tab/enter命令
+                (KeyCode::Tab, _) => Ok(Self::Insert('\t')),
+                (KeyCode::Enter, _) => Ok(Self::Enter),
                 // 如果按键不支持，返回错误信息。
                 _ => Err(format!("Unsupported key event: {event:?}")),
             },

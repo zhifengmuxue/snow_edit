@@ -12,12 +12,9 @@ use view::View;
 mod editorcommand;
 
 /// `Editor` 结构体是编辑器的核心，
-/// 包含光标位置、视图和退出标志等。
 pub struct Editor {
-    /// 标志是否退出编辑器。
-    should_quit: bool,
-    /// 编辑器的视图，用于渲染内容。
-    view: View,
+    should_quit: bool,          // 标志是否退出编辑器。
+    view: View,                 // 编辑器的视图，用于渲染内容。
 }
 
 impl Editor {

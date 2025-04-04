@@ -7,29 +7,19 @@ use std::io::{Error, Write, stdout};
 /// 表示终端的尺寸（宽度和高度）。
 #[derive(Default, Clone, Copy)]
 pub struct Size {
-    /// 终端的高度（行数）。
-    pub height: usize,
-    /// 终端的宽度（列数）。
-    pub width: usize,
+    pub height: usize,  // 终端的高度（行数）。
+    pub width: usize,   // 终端的宽度（列数）。
 }
 
 /// 表示终端中的光标位置。
 #[derive(Clone, Copy, Default)]
 pub struct Position {
-    /// 光标所在的列。
-    pub col: usize,
-    /// 光标所在的行。
-    pub row: usize,
+    pub col: usize,         // 光标所在的列。
+    pub row: usize,         // 光标所在的行。   
 }
 
 impl Position {
     /// 计算两个位置的差值，结果不会为负数。
-    ///
-    /// # 参数
-    /// - `other`: 要减去的位置。
-    ///
-    /// # 返回值
-    /// 返回一个新的 `Position`，表示差值。
     pub const fn saturating_sub(self, other: Self) -> Self {
         Self {
             row: self.row.saturating_sub(other.row),
@@ -45,9 +35,6 @@ impl Terminal {
     // ==================== 初始化和终止 ====================
 
     /// 初始化终端，进入原始模式并清理屏幕。
-    ///
-    /// # 返回值
-    /// 如果成功，返回 `Ok(())`；如果失败，返回 `Error`。
     pub fn initialize() -> Result<(), Error> {
         enable_raw_mode()?;
         Self::enter_alternate_screen()?;
@@ -57,9 +44,6 @@ impl Terminal {
     }
 
     /// 终止终端，恢复到正常模式。
-    ///
-    /// # 返回值
-    /// 如果成功，返回 `Ok(())`；如果失败，返回 `Error`。
     pub fn terminate() -> Result<(), Error> {
         Self::leave_alternate_screen()?;
         Self::show_caret()?;
@@ -71,18 +55,12 @@ impl Terminal {
     // ==================== 屏幕操作 ====================
 
     /// 清理整个屏幕。
-    ///
-    /// # 返回值
-    /// 如果成功，返回 `Ok(())`；如果失败，返回 `Error`。
     pub fn clear_screen() -> Result<(), Error> {
         Self::queue_command(Clear(ClearType::All))?;
         Ok(())
     }
 
     /// 清理当前行。
-    ///
-    /// # 返回值
-    /// 如果成功，返回 `Ok(())`；如果失败，返回 `Error`。
     pub fn clear_line() -> Result<(), Error> {
         Self::queue_command(Clear(ClearType::CurrentLine))?;
         Ok(())
@@ -91,12 +69,6 @@ impl Terminal {
     // ==================== 光标操作 ====================
 
     /// 将光标移动到指定位置。
-    ///
-    /// # 参数
-    /// - `pos`: 光标的新位置。
-    ///
-    /// # 返回值
-    /// 如果成功，返回 `Ok(())`；如果失败，返回 `Error`。
     pub fn move_caret_to(pos: Position) -> Result<(), Error> {
         #[allow(clippy::as_conversions, clippy::cast_possible_truncation)]
         Self::queue_command(MoveTo(pos.col as u16, pos.row as u16))?;
@@ -104,18 +76,12 @@ impl Terminal {
     }
 
     /// 隐藏光标。
-    ///
-    /// # 返回值
-    /// 如果成功，返回 `Ok(())`；如果失败，返回 `Error`。
     pub fn hide_caret() -> Result<(), Error> {
         Self::queue_command(Hide)?;
         Ok(())
     }
 
     /// 显示光标。
-    ///
-    /// # 返回值
-    /// 如果成功，返回 `Ok(())`；如果失败，返回 `Error`。
     pub fn show_caret() -> Result<(), Error> {
         Self::queue_command(Show)?;
         Ok(())
@@ -124,25 +90,12 @@ impl Terminal {
     // ==================== 文本输出 ====================
 
     /// 输出字符串到终端。
-    ///
-    /// # 参数
-    /// - `string`: 要输出的字符串。
-    ///
-    /// # 返回值
-    /// 如果成功，返回 `Ok(())`；如果失败，返回 `Error`。
     pub fn print(string: &str) -> Result<(), Error> {
         Self::queue_command(Print(string))?;
         Ok(())
     }
 
     /// 在指定行打印文本。
-    ///
-    /// # 参数
-    /// - `row`: 要打印的行号。
-    /// - `line_text`: 要打印的文本内容。
-    ///
-    /// # 返回值
-    /// 如果成功，返回 `Ok(())`；如果失败，返回 `Error`。
     pub fn print_row(row: usize, line_text: &str) -> Result<(), Error> {
         Self::move_caret_to(Position { col: 0, row })?;
         Self::clear_line()?;
@@ -153,9 +106,6 @@ impl Terminal {
     // ==================== 尺寸获取 ====================
 
     /// 获取终端的尺寸（宽度和高度）。
-    ///
-    /// # 返回值
-    /// 如果成功，返回 `Size`；如果失败，返回 `Error`。
     pub fn size() -> Result<Size, Error> {
         let (width_u16, height_u16) = size()?;
         #[allow(clippy::as_conversions)]
@@ -168,39 +118,24 @@ impl Terminal {
     // ==================== 内部辅助方法 ====================
 
     /// 刷新终端，执行所有排队的命令。
-    ///
-    /// # 返回值
-    /// 如果成功，返回 `Ok(())`；如果失败，返回 `Error`。
     pub fn execute() -> Result<(), Error> {
         stdout().flush()?;
         Ok(())
     }
 
     /// 将命令加入队列。
-    ///
-    /// # 参数
-    /// - `command`: 要加入队列的命令。
-    ///
-    /// # 返回值
-    /// 如果成功，返回 `Ok(())`；如果失败，返回 `Error`。
     fn queue_command(command: impl Command) -> Result<(), Error> {
         queue!(stdout(), command)?;
         Ok(())
     }
 
     /// 进入替代屏幕。
-    ///
-    /// # 返回值
-    /// 如果成功，返回 `Ok(())`；如果失败，返回 `Error`。
     pub fn enter_alternate_screen() -> Result<(), Error> {
         Self::queue_command(EnterAlternateScreen)?;
         Ok(())
     }
 
     /// 离开替代屏幕。
-    ///
-    /// # 返回值
-    /// 如果成功，返回 `Ok(())`；如果失败，返回 `Error`。
     pub fn leave_alternate_screen() -> Result<(), Error> {
         Self::queue_command(LeaveAlternateScreen)?;
         Ok(())
