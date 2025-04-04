@@ -47,7 +47,7 @@ impl Line {
     }
 
     /// 将字符串转换为文本片段的向量。
-    pub fn str_to_fragments(line_str: &str) -> Vec<TextFragment> {
+    fn str_to_fragments(line_str: &str) -> Vec<TextFragment> {
         line_str
             .graphemes(true)
             .map(|grapheme| {
@@ -141,6 +141,7 @@ impl Line {
             .sum()
     }
 
+    /// 在指定位置插入一个字符。
     pub fn insert_char(&mut self, character: char, grapheme_index: usize){
         let mut result = String::new();
         for (index, fragment) in self.fragments.iter().enumerate() {
@@ -151,6 +152,17 @@ impl Line {
         }
         if grapheme_index >= self.fragments.len() {
             result.push(character);
+        }
+        self.fragments = Self::str_to_fragments(&result);
+    }
+
+    /// 删除指定索引的字形。
+    pub fn delete(&mut self, grapheme_index: usize){
+        let mut result = String::new();
+        for (index, fragment) in self.fragments.iter().enumerate() {
+            if index != grapheme_index {
+                result.push_str(&fragment.grapheme);
+            }
         }
         self.fragments = Self::str_to_fragments(&result);
     }

@@ -48,4 +48,11 @@ impl Buffer {
             line.insert_char(character, at.grapheme_index);
         }
     }
+
+    /// 简单删除字符。
+    pub fn delete(&mut self, at: Location){
+        if let Some(line) = self.lines.get_mut(at.line_index){
+            line.delete(at.grapheme_index);
+        }
+    }
 }

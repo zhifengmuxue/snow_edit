@@ -102,6 +102,8 @@ impl View {
             EditorCommand::Move(direction) => self.move_text_location(&direction),
             EditorCommand::Quit => {}
             EditorCommand::Insert(character) => self.insert_char(character),
+            EditorCommand::Delete => self.delete(),
+            EditorCommand::Backspace => self.backspace(),
         }
     }
 
@@ -135,6 +137,18 @@ impl View {
             self.move_right();
         }
         self.needs_redraw = true
+    }
+
+    /// 删除光标左侧的字符。
+    fn backspace(&mut self) {
+        self.move_left();
+        self.delete();
+    }
+    
+    /// 删除光标上的字符
+    fn delete(&mut self) {
+        self.buffer.delete(self.text_location);
+        self.needs_redraw = true;
     }
 
     // ==================== 光标移动相关方法 ====================
