@@ -1,3 +1,4 @@
+use core::fmt;
 use std::ops::Range;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
@@ -51,8 +52,7 @@ impl Line {
         line_str
             .graphemes(true)
             .map(|grapheme| {
-                let (replacement, rendered_width) = Self::replace_character(grapheme)
-                .map_or_else(
+                let (replacement, rendered_width) = Self::replace_character(grapheme).map_or_else(
                     || {
                         let unicode_width = grapheme.width();
                         let rendered_width = match unicode_width {
@@ -72,8 +72,7 @@ impl Line {
             .collect()
     }
 
-
-    fn replace_character(for_str: &str) -> Option<char>{
+    fn replace_character(for_str: &str) -> Option<char> {
         let width = for_str.width();
         match for_str {
             " " => None,
@@ -81,9 +80,9 @@ impl Line {
             _ if width > 0 && for_str.trim().is_empty() => Some('␣'),
             _ if width == 0 => {
                 let mut chars = for_str.chars();
-                if let Some(ch) = chars.next(){
-                    if ch.is_control() && chars.next().is_none(){
-                        return  Some('▯');
+                if let Some(ch) = chars.next() {
+                    if ch.is_control() && chars.next().is_none() {
+                        return Some('▯');
                     }
                 }
                 Some('·')
@@ -142,7 +141,7 @@ impl Line {
     }
 
     /// 在指定位置插入一个字符。
-    pub fn insert_char(&mut self, character: char, grapheme_index: usize){
+    pub fn insert_char(&mut self, character: char, grapheme_index: usize) {
         let mut result = String::new();
         for (index, fragment) in self.fragments.iter().enumerate() {
             if index == grapheme_index {
@@ -157,7 +156,7 @@ impl Line {
     }
 
     /// 删除指定索引的字形。
-    pub fn delete(&mut self, grapheme_index: usize){
+    pub fn delete(&mut self, grapheme_index: usize) {
         let mut result = String::new();
         for (index, fragment) in self.fragments.iter().enumerate() {
             if index != grapheme_index {
@@ -165,5 +164,24 @@ impl Line {
             }
         }
         self.fragments = Self::str_to_fragments(&result);
+    }
+
+    /// 将一行添加到另一行
+    pub fn append(&mut self, other: &Self) {
+        let mut concat = self.to_string();
+        concat.push_str(&other.to_string());
+        self.fragments = Self::str_to_fragments(&concat);
+    }
+}
+
+/// 实现 `Display` trait，用于格式化输出。
+impl fmt::Display for Line {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        let result: String = self
+            .fragments
+            .iter()
+            .map(|fragment| fragment.grapheme.clone())
+            .collect();
+        write!(formatter, "{result}")
     }
 }

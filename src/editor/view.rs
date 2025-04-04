@@ -134,17 +134,19 @@ impl View {
             .map_or(0, Line::grapheme_count);
         let grapheme_delta = new_len.saturating_sub(old_len);
         if grapheme_delta > 0 {
-            self.move_right();
+            self.move_text_location(&Direction::Right);
         }
         self.needs_redraw = true
     }
 
     /// 删除光标左侧的字符。
     fn backspace(&mut self) {
-        self.move_left();
-        self.delete();
+        if self.text_location.line_index != 0 || self.text_location.grapheme_index != 0 {
+            self.move_left();
+            self.delete();
+        }
     }
-    
+
     /// 删除光标上的字符
     fn delete(&mut self) {
         self.buffer.delete(self.text_location);
