@@ -24,6 +24,7 @@ pub enum EditorCommand {
     Backspace,
     Delete,
     Enter,
+    Save,
 }
 
 #[allow(clippy::as_conversions)]
@@ -44,6 +45,7 @@ impl TryFrom<Event> for EditorCommand {
                 (KeyCode::Char(character), KeyModifiers::NONE | KeyModifiers::SHIFT) => {
                     Ok(Self::Insert(character))
                 },
+                (KeyCode::Char('s'), KeyModifiers::CONTROL) => Ok(Self::Save),
                 // 如果按下方向键，返回对应的移动命令。
                 (KeyCode::Up, _) => Ok(Self::Move(Direction::Up)),
                 (KeyCode::Down, _) => Ok(Self::Move(Direction::Down)),

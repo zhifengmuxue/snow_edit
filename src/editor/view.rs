@@ -96,6 +96,7 @@ impl View {
             EditorCommand::Delete => self.delete(),
             EditorCommand::Backspace => self.delete_backward(),
             EditorCommand::Enter => self.insert_newline(),
+            EditorCommand::Save => self.save(),
         }
     }
 
@@ -136,6 +137,11 @@ impl View {
         self.buffer.insert_newline(self.text_location);
         self.move_text_location(&Direction::Right);
         self.needs_redraw = true;
+    }
+
+    /// 文件保存
+    fn save(&self){
+        let _ = self.buffer.save();
     }
 
     /// 删除光标左侧的字符。
