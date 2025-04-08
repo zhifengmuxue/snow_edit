@@ -1,7 +1,10 @@
 mod terminal;
 mod view;
+mod editorcommand;
+mod statusbar;
 use crossterm::event::{Event, KeyEvent, KeyEventKind, read};
 use editorcommand::EditorCommand;
+use statusbar::Statusbar;
 use std::{
     env,
     io::Error,
@@ -9,12 +12,23 @@ use std::{
 };
 use terminal::Terminal;
 use view::View;
-mod editorcommand;
+
+
 
 /// `Editor` 结构体是编辑器的核心，
 pub struct Editor {
     should_quit: bool,          // 标志是否退出编辑器。
     view: View,                 // 编辑器的视图，用于渲染内容。
+    status_bar: Statusbar,      // 状态栏，用于显示状态信息。
+    
+}
+
+#[derive(Default, Eq, PartialEq, Debug)]
+pub struct DocumentStatus{
+    total_lines: usize,       // 文档的总行数。
+    current_line_index: usize,      // 当前行号。
+    is_modified: bool,          // 文档是否被修改。
+    file_name: Option<String>,   // 文档的文件名。
 }
 
 impl Editor {
@@ -31,7 +45,7 @@ impl Editor {
         Terminal::initialize()?;
 
         // 创建默认视图并加载文件（如果提供了文件名）。
-        let mut view = View::default();
+        let mut view = View::new(2);
         let args: Vec<String> = env::args().collect();
         if let Some(file_name) = args.get(1) {
             view.load(file_name);
@@ -40,6 +54,7 @@ impl Editor {
         Ok(Self {
             should_quit: false,
             view,
+            status_bar: Statusbar::new(1),
         })
     }
 
@@ -64,6 +79,8 @@ impl Editor {
                     }
                 }
             }
+            let status = self.view.get_status();
+            self.status_bar.update_status(status);
         }
     }
 
@@ -82,14 +99,12 @@ impl Editor {
                     self.should_quit = true;
                 } else {
                     self.view.handle_command(command);
+                    if let EditorCommand::Resize(size) = command {
+                        self.status_bar.resize(size);
+                    }
                 }
             }
-        } else {
-            #[cfg(debug_assertions)]
-            {
-                panic!("Received and discarded unsupported or non-press event.");
-            }
-        }
+        } 
     }
 
     /// 刷新屏幕内容。
@@ -99,6 +114,7 @@ impl Editor {
 
         // 渲染视图内容。
         self.view.render();
+        self.status_bar.render();
 
         // 将光标移动到当前的位置。
         let _ = Terminal::move_caret_to(self.view.caret_position());

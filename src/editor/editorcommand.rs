@@ -4,6 +4,7 @@ use std::convert::TryFrom;
 use super::terminal::Size;
 
 /// 表示光标移动的方向。
+#[derive(Clone, Copy)]
 pub enum Direction {
     PageUp,
     PageDown,
@@ -16,6 +17,7 @@ pub enum Direction {
 }
 
 /// 表示编辑器的命令。
+#[derive(Clone, Copy)]
 pub enum EditorCommand {
     Move(Direction),
     Resize(Size),

@@ -4,7 +4,7 @@ mod buffer;
 mod line;
 use super::{
     editorcommand::{Direction, EditorCommand},
-    terminal::{Position, Size, Terminal},
+    terminal::{Position, Size, Terminal}, DocumentStatus,
 };
 use buffer::Buffer;
 use line::Line;
@@ -29,6 +29,22 @@ pub struct View {
 }
 
 impl View {
+
+    /// 构造方法，用于创建一个新的 `View` 实例。
+    pub fn new(margin_bottom: usize) -> Self{
+        let terminal_size = Terminal::size().unwrap_or_default();
+        Self {
+            buffer: Buffer::default(),
+            needs_redraw: true,
+            size: Size {
+                width: terminal_size.width,
+                height: terminal_size.height.saturating_sub(margin_bottom),
+            },
+            text_location: Location::default(),
+            scroll_offset: Position::default(),
+        }
+    }
+
     // ==================== 渲染相关方法 ====================
 
     /// 渲染单行文本。
@@ -85,12 +101,22 @@ impl View {
         full_message
     }
 
+    /// 获取文档状态。
+    pub fn get_status(&self) -> DocumentStatus{
+        DocumentStatus {
+            total_lines: self.buffer.height(),
+            current_line_index: self.text_location.line_index,
+            file_name: self.buffer.file_name.clone(),
+            is_modified: self.buffer.dirty,
+        }
+    }
+
     // ==================== 编辑器命令相关方法 ====================
 
     pub fn handle_command(&mut self, command: EditorCommand) {
         match command {
             EditorCommand::Resize(size) => self.resize(size),
-            EditorCommand::Move(direction) => self.move_text_location(&direction),
+            EditorCommand::Move(direction) => self.move_text_location(direction),
             EditorCommand::Quit => {}
             EditorCommand::Insert(character) => self.insert_char(character),
             EditorCommand::Delete => self.delete(),
@@ -107,11 +133,7 @@ impl View {
         }
     }
 
-    fn resize(&mut self, to: Size) {
-        self.size = to;
-        self.scroll_text_location_into_view();
-        self.needs_redraw = true;
-    }
+    // ==================== 文本编辑相关方法 ====================
 
     /// 插入新字符。
     fn insert_char(&mut self, character: char) {
@@ -128,19 +150,19 @@ impl View {
             .map_or(0, Line::grapheme_count);
         let grapheme_delta = new_len.saturating_sub(old_len);
         if grapheme_delta > 0 {
-            self.move_text_location(&Direction::Right);
+            self.move_text_location(Direction::Right);
         }
         self.needs_redraw = true
     }
 
     fn insert_newline(&mut self) {
         self.buffer.insert_newline(self.text_location);
-        self.move_text_location(&Direction::Right);
+        self.move_text_location(Direction::Right);
         self.needs_redraw = true;
     }
 
     /// 文件保存
-    fn save(&self){
+    fn save(&mut self){
         let _ = self.buffer.save();
     }
 
@@ -158,9 +180,16 @@ impl View {
         self.needs_redraw = true;
     }
 
+    /// 重新调整视图大小。
+    fn resize(&mut self, to: Size){
+        self.size = to;
+        self.scroll_text_location_into_view();
+        self.needs_redraw = true;
+    }
+
     // ==================== 光标移动相关方法 ====================
 
-    fn move_text_location(&mut self, direction: &Direction) {
+    fn move_text_location(&mut self, direction: Direction) {
         let Size { height, .. } = self.size;
         match direction {
             Direction::Up => self.move_up(1),
@@ -293,15 +322,4 @@ impl View {
     }
 }
 
-impl Default for View {
-    /// 默认情况下，缓冲区为空，`needs_redraw` 为 `true`，尺寸为终端的当前大小。
-    fn default() -> Self {
-        Self {
-            buffer: Buffer::default(),
-            needs_redraw: true,
-            size: Terminal::size().unwrap_or_default(),
-            text_location: Location::default(),
-            scroll_offset: Position::default(),
-        }
-    }
-}
+
