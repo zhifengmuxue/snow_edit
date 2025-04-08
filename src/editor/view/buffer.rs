@@ -4,16 +4,16 @@ use std::io::Write;
 use super::line::Line;
 use super::Location;
 
-/// `Buffer` 结构体用于存储文本内容。
+/// 存储文本内容,进行底层交互。
 #[derive(Default)]
 pub struct Buffer {
-    pub lines: Vec<Line>,       // 存储文本内容的行向量。
-    pub file_name: Option<String>, // 可选的文件名，用于保存和加载。
-    pub dirty: bool,       // 标志是否需要保存。
+    pub lines: Vec<Line>,               // 存储文本内容的行向量。
+    pub file_name: Option<String>,      // 可选的文件名，用于保存和加载。
+    pub dirty: bool,                    // 标志是否已经被修改（脏数据）。
 }
 
 impl Buffer {
-    /// 从指定的文件加载内容到缓冲区。
+    /// 读取文件，加载到缓冲区。
     pub fn load(file_name: &str) -> Result<Self, Error> {
         // 读取文件内容为字符串
         let contents = read_to_string(file_name)?;
@@ -36,6 +36,7 @@ impl Buffer {
     pub fn is_empty(&self) -> bool {
         self.lines.is_empty()
     }
+
     /// 获取缓冲区的行数。
     pub fn height(&self) -> usize {
         self.lines.len()

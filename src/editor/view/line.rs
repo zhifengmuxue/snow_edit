@@ -3,7 +3,7 @@ use std::ops::Range;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
-/// 表示一个字形的宽度。
+/// 一个字的宽度。
 #[derive(Clone, Copy)]
 enum GraphemeWidth {
     Half,           // 半宽字符（如 ASCII 字符）。
@@ -11,7 +11,7 @@ enum GraphemeWidth {
 }
 
 impl GraphemeWidth {
-    // 将当前宽度与另一个值相加，返回结果。
+    // 宽度相加
     const fn saturating_add(self, other: usize) -> usize {
         match self {
             Self::Full => other.saturating_add(2),
@@ -65,7 +65,7 @@ impl Line {
             .collect()
     }
 
-    /// 替换不可见字符为替代字符。
+    /// 替换特殊字符。
     fn replace_character(for_str: &str) -> Option<char> {
         let width = for_str.width();
         match for_str {
@@ -110,14 +110,12 @@ impl Line {
                     result.push_str(&fragment.grapheme); // 添加实际字形。
                 }
             }
-
             current_pos = fragment_end;
         }
-
         result
     }
 
-    /// 获取行中字形的数量。
+    /// 获取行中字数。
     pub fn grapheme_count(&self) -> usize {
         self.fragments.len()
     }

@@ -29,8 +29,7 @@ pub struct View {
 }
 
 impl View {
-
-    /// 构造方法，用于创建一个新的 `View` 实例。
+    /// 构造方法。
     pub fn new(margin_bottom: usize) -> Self{
         let terminal_size = Terminal::size().unwrap_or_default();
         Self {
@@ -84,6 +83,7 @@ impl View {
         self.needs_redraw = false;
     }
 
+    /// 生成欢迎信息。
     fn build_welcome_message(width: usize) -> String {
         if width == 0 {
             return " ".to_string();
@@ -126,6 +126,7 @@ impl View {
         }
     }
 
+    /// 加载文件。
     pub fn load(&mut self, file_name: &str) {
         if let Ok(buffer) = Buffer::load(file_name) {
             self.buffer = buffer;
@@ -155,6 +156,7 @@ impl View {
         self.needs_redraw = true
     }
 
+    /// 插入新行
     fn insert_newline(&mut self) {
         self.buffer.insert_newline(self.text_location);
         self.move_text_location(Direction::Right);
@@ -189,6 +191,7 @@ impl View {
 
     // ==================== 光标移动相关方法 ====================
 
+    /// 移动光标位置。
     fn move_text_location(&mut self, direction: Direction) {
         let Size { height, .. } = self.size;
         match direction {
@@ -204,17 +207,20 @@ impl View {
         self.scroll_text_location_into_view();
     }
 
+    /// 光标向上移动
     fn move_up(&mut self, step: usize) {
         self.text_location.line_index = self.text_location.line_index.saturating_sub(step);
         self.snap_to_valid_grapheme();
     }
 
+    /// 光标向下移动
     fn move_down(&mut self, step: usize) {
         self.text_location.line_index = self.text_location.line_index.saturating_add(step);
         self.snap_to_valid_grapheme();
         self.snap_to_valid_line();
     }
 
+    /// 光标向右移动
     #[allow(clippy::arithmetic_side_effects)]
     fn move_right(&mut self) {
         let line_width = self
@@ -230,6 +236,7 @@ impl View {
         }
     }
 
+    /// 光标向左移动
     #[allow(clippy::arithmetic_side_effects)]
     fn move_left(&mut self) {
         if self.text_location.grapheme_index > 0 {
@@ -240,10 +247,12 @@ impl View {
         }
     }
 
+    /// 光标移动到行首
     fn move_to_start_of_line(&mut self) {
         self.text_location.grapheme_index = 0;
     }
 
+    /// 光标移动到行尾
     fn move_to_end_of_line(&mut self) {
         self.text_location.grapheme_index = self
             .buffer
@@ -254,6 +263,7 @@ impl View {
 
     // ==================== 滚动相关方法 ====================
 
+    /// 竖直滚动
     fn scroll_vertically(&mut self, to: usize) {
         let Size { height, .. } = self.size;
         let offset_changed = if to < self.scroll_offset.row {
@@ -270,6 +280,7 @@ impl View {
         }
     }
 
+    /// 水平滚动
     fn scroll_horizontally(&mut self, to: usize) {
         let Size { width, .. } = self.size;
         let offset_changed = if to < self.scroll_offset.col {
@@ -286,6 +297,7 @@ impl View {
         }
     }
 
+    /// 滚动文本位置到可见区域。
     fn scroll_text_location_into_view(&mut self) {
         let Position { row, col } = self.text_location_to_position();
         self.scroll_vertically(row);
@@ -294,11 +306,13 @@ impl View {
 
     // ==================== 辅助方法 ====================
 
+    /// 获取当前光标位置。
     pub fn caret_position(&self) -> Position {
         self.text_location_to_position()
             .saturating_sub(self.scroll_offset)
     }
 
+    /// 获取当前光标在缓冲区中的位置。
     fn text_location_to_position(&self) -> Position {
         let row = self.text_location.line_index;
         let col = self.buffer.lines.get(row).map_or(0, |line| {
@@ -307,6 +321,7 @@ impl View {
         Position { col, row }
     }
 
+    /// 对齐有效字素
     fn snap_to_valid_grapheme(&mut self) {
         self.text_location.grapheme_index = self
             .buffer
@@ -317,6 +332,7 @@ impl View {
             });
     }
 
+    /// 对齐有效行。
     fn snap_to_valid_line(&mut self) {
         self.text_location.line_index = min(self.text_location.line_index, self.buffer.height());
     }

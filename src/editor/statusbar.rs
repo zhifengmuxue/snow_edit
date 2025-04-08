@@ -39,6 +39,7 @@ impl Statusbar  {
         }
     }
 
+    /// 渲染
     pub fn render(&mut self) {
         if !self.needs_redraw {
             return;
