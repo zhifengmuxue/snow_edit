@@ -1,6 +1,8 @@
 use std::fs::{read_to_string, File};
 use std::io::Error;
 use std::io::Write;
+use crate::editor::fileinfo::FileInfo;
+
 use super::line::Line;
 use super::Location;
 
@@ -8,7 +10,7 @@ use super::Location;
 #[derive(Default)]
 pub struct Buffer {
     pub lines: Vec<Line>,               // 存储文本内容的行向量。
-    pub file_name: Option<String>,      // 可选的文件名，用于保存和加载。
+    pub file_info: FileInfo,      // 文件信息
     pub dirty: bool,                    // 标志是否已经被修改（脏数据）。
 }
 
@@ -27,7 +29,7 @@ impl Buffer {
         // 返回包含行数据的 `Buffer` 实例
         Ok(Self { 
             lines ,
-            file_name: Some(file_name.to_string()),
+            file_info: FileInfo::from(file_name),
             dirty: false,
         })
     }
@@ -89,8 +91,8 @@ impl Buffer {
 
     /// 保存缓冲区内容到文件。
     pub fn save(&mut self) -> Result<(), Error> {
-        if let Some(file_name) = &self.file_name {
-            let mut file = File::create(file_name)?;
+        if let Some(path) = &self.file_info.path {
+            let mut file = File::create(path)?;
             for line in &self.lines {
                 writeln!(file, "{line}")?; 
             }

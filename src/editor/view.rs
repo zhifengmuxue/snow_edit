@@ -1,112 +1,61 @@
-use std::cmp::min;
-use std::env;
+use std::{cmp::min, io::Error};
 mod buffer;
 mod line;
 use super::{
+    NAME, VERSION,
+    documentstatus::DocumentStatus,
     editorcommand::{Direction, EditorCommand},
-    terminal::{Position, Size, Terminal}, DocumentStatus,
+    terminal::{Position, Size, Terminal},
+    uicomponent::UIComponent,
 };
 use buffer::Buffer;
 use line::Line;
 
-/// `View` 结构体负责管理文本的渲染和显示。
-const NAME: &str = env!("CARGO_PKG_NAME");
-const VERSION: &str = env!("CARGO_PKG_VERSION");
-
 #[derive(Clone, Copy, Default)]
 pub struct Location {
-    pub grapheme_index: usize,          // 当前光标所在的字形索引。
-    pub line_index: usize,              // 当前光标所在的行索引。
+    pub grapheme_index: usize, // 当前光标所在的字形索引。
+    pub line_index: usize,     // 当前光标所在的行索引。
 }
 
 /// `View` 结构体定义了编辑器的视图。
+#[derive(Default)]
 pub struct View {
-    buffer: Buffer,             // 当前缓冲区，存储文本内容。
-    needs_redraw: bool,         // 标记是否需要重新渲染。
-    size: Size,                 // 当前视图的尺寸（宽度和高度）。
-    text_location: Location,    // 当前光标的位置。
-    scroll_offset: Position,    // 滚动偏移量，用于确定视图的起始位置。
+    buffer: Buffer,          // 当前缓冲区，存储文本内容。
+    needs_redraw: bool,      // 标记是否需要重新渲染。
+    size: Size,              // 当前视图的尺寸（宽度和高度）。
+    text_location: Location, // 当前光标的位置。
+    scroll_offset: Position, // 滚动偏移量，用于确定视图的起始位置。
 }
 
 impl View {
-    /// 构造方法。
-    pub fn new(margin_bottom: usize) -> Self{
-        let terminal_size = Terminal::size().unwrap_or_default();
-        Self {
-            buffer: Buffer::default(),
-            needs_redraw: true,
-            size: Size {
-                width: terminal_size.width,
-                height: terminal_size.height.saturating_sub(margin_bottom),
-            },
-            text_location: Location::default(),
-            scroll_offset: Position::default(),
-        }
-    }
-
     // ==================== 渲染相关方法 ====================
 
     /// 渲染单行文本。
-    fn render_line(at: usize, line_text: &str) {
-        let result = Terminal::print_row(at, line_text);
-        debug_assert!(
-            result.is_ok(),
-            "Fail to render line: {}",
-            result.unwrap_err()
-        );
-    }
-
-    /// 渲染整个视图。
-    pub fn render(&mut self) {
-        if !self.needs_redraw {
-            return;
-        }
-        let Size { height, width } = self.size;
-        if height == 0 || width == 0 {
-            return;
-        }
-        #[allow(clippy::integer_division)]
-        let vertical_center = height / 2;
-        let top = self.scroll_offset.row;
-
-        for current_row in 0..height {
-            if let Some(line) = self.buffer.lines.get(current_row.saturating_add(top)) {
-                let left = self.scroll_offset.col;
-                let right = self.scroll_offset.col.saturating_add(width);
-                Self::render_line(current_row, &line.get_visible_graphemes(left..right));
-            } else if current_row == vertical_center && self.buffer.is_empty() {
-                Self::render_line(current_row, &Self::build_welcome_message(width));
-            } else {
-                Self::render_line(current_row, "~");
-            }
-        }
-        self.needs_redraw = false;
+    fn render_line(at: usize, line_text: &str) -> Result<(), Error> {
+        Terminal::print_row(at, line_text)
     }
 
     /// 生成欢迎信息。
     fn build_welcome_message(width: usize) -> String {
         if width == 0 {
-            return " ".to_string();
+            return String::new();
         }
         let welcome_message = format!("{NAME} editor -- version {VERSION}");
         let len = welcome_message.len();
-        if width <= len {
+        let remaining_width = width.saturating_sub(1);
+        if remaining_width < len {
             return "~".to_string();
         }
 
-        #[allow(clippy::integer_division)]
-        let padding = (width.saturating_sub(len).saturating_sub(1)) / 2;
-        let mut full_message = format!("~{}{}", " ".repeat(padding), welcome_message);
-        full_message.truncate(width);
-        full_message
+        format!("{:<1}{:^remaining_width$}", "~", welcome_message)
     }
 
     /// 获取文档状态。
-    pub fn get_status(&self) -> DocumentStatus{
+    pub fn get_status(&self) -> DocumentStatus {
         DocumentStatus {
             total_lines: self.buffer.height(),
             current_line_index: self.text_location.line_index,
-            file_name: self.buffer.file_name.clone(),
+            file_name: format!("{}", self.buffer.file_info),
             is_modified: self.buffer.dirty,
         }
     }
@@ -116,8 +65,9 @@ impl View {
     pub fn handle_command(&mut self, command: EditorCommand) {
         match command {
             EditorCommand::Resize(size) => self.resize(size),
+            // EditorCommand::Resize(_) | 
+            EditorCommand::Quit => {},
             EditorCommand::Move(direction) => self.move_text_location(direction),
-            EditorCommand::Quit => {}
             EditorCommand::Insert(character) => self.insert_char(character),
             EditorCommand::Delete => self.delete(),
             EditorCommand::Backspace => self.delete_backward(),
@@ -130,7 +80,7 @@ impl View {
     pub fn load(&mut self, file_name: &str) {
         if let Ok(buffer) = Buffer::load(file_name) {
             self.buffer = buffer;
-            self.needs_redraw = true;
+            self.mark_redraw(true);
         }
     }
 
@@ -153,18 +103,18 @@ impl View {
         if grapheme_delta > 0 {
             self.move_text_location(Direction::Right);
         }
-        self.needs_redraw = true
+        self.mark_redraw(true);
     }
 
     /// 插入新行
     fn insert_newline(&mut self) {
         self.buffer.insert_newline(self.text_location);
         self.move_text_location(Direction::Right);
-        self.needs_redraw = true;
+        self.mark_redraw(true);
     }
 
     /// 文件保存
-    fn save(&mut self){
+    fn save(&mut self) {
         let _ = self.buffer.save();
     }
 
@@ -179,14 +129,7 @@ impl View {
     /// 删除光标上的字符
     fn delete(&mut self) {
         self.buffer.delete(self.text_location);
-        self.needs_redraw = true;
-    }
-
-    /// 重新调整视图大小。
-    fn resize(&mut self, to: Size){
-        self.size = to;
-        self.scroll_text_location_into_view();
-        self.needs_redraw = true;
+        self.mark_redraw(true);
     }
 
     // ==================== 光标移动相关方法 ====================
@@ -276,7 +219,7 @@ impl View {
             false
         };
         if offset_changed {
-            self.needs_redraw = true;
+            self.mark_redraw(true);
         }
     }
 
@@ -293,7 +236,7 @@ impl View {
             false
         };
         if offset_changed {
-            self.needs_redraw = true;
+            self.mark_redraw(true);
         }
     }
 
@@ -338,4 +281,41 @@ impl View {
     }
 }
 
+impl UIComponent for View {
+    fn mark_redraw(&mut self, value: bool) {
+        self.needs_redraw = value;
+    }
 
+    fn needs_redraw(&self) -> bool {
+        self.needs_redraw
+    }
+
+    fn set_size(&mut self, size: Size) {
+        self.size = size;
+        self.scroll_text_location_into_view();
+    }
+
+    fn draw(&mut self, origin_y: usize) -> Result<(), Error> {
+        let Size { width, height } = self.size;
+        let end_y = origin_y.saturating_add(height);
+
+        #[allow(clippy::integer_division)]
+        let top_third = height / 3;
+        let scroll_top = self.scroll_offset.row;
+        for current_row in origin_y..end_y {
+            let line_idx = current_row
+                .saturating_sub(origin_y)
+                .saturating_add(scroll_top);
+            if let Some(line) = self.buffer.lines.get(line_idx) {
+                let left = self.scroll_offset.col;
+                let right = self.scroll_offset.col.saturating_add(width);
+                Self::render_line(current_row, &line.get_visible_graphemes(left..right))?;
+            } else if current_row == top_third && self.buffer.is_empty() {
+                Self::render_line(current_row, &Self::build_welcome_message(width))?;
+            } else {
+                Self::render_line(current_row, "~")?;
+            }
+        }
+        Ok(())
+    }
+}
