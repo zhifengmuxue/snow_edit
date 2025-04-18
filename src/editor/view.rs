@@ -4,7 +4,7 @@ mod line;
 use super::{
     NAME, VERSION,
     documentstatus::DocumentStatus,
-    editorcommand::{Direction, EditorCommand},
+    command::{Edit, Move},
     terminal::{Position, Size, Terminal},
     uicomponent::UIComponent,
 };
@@ -62,26 +62,36 @@ impl View {
 
     // ==================== 编辑器命令相关方法 ====================
 
-    pub fn handle_command(&mut self, command: EditorCommand) {
+    pub fn handle_edit_command(&mut self, command: Edit) {
         match command {
-            EditorCommand::Resize(size) => self.resize(size),
-            // EditorCommand::Resize(_) | 
-            EditorCommand::Quit => {},
-            EditorCommand::Move(direction) => self.move_text_location(direction),
-            EditorCommand::Insert(character) => self.insert_char(character),
-            EditorCommand::Delete => self.delete(),
-            EditorCommand::Backspace => self.delete_backward(),
-            EditorCommand::Enter => self.insert_newline(),
-            EditorCommand::Save => self.save(),
+            Edit::Insert(character) => self.insert_char(character),
+            Edit::Delete => self.delete(),
+            Edit::DeleteBackward => self.delete_backward(),
+            Edit::InsertNewline => self.insert_newline(),
         }
     }
 
+    pub fn handle_move_command(&mut self, command: Move){
+        let Size { height, .. } = self.size;
+        match command {
+             Move::Up => self.move_up(1),
+             Move::Down => self.move_down(1),
+             Move::Left => self.move_left(),
+             Move::Right => self.move_right(),
+             Move::PageUp => self.move_up(height.saturating_sub(1)),
+             Move::PageDown => self.move_down(height.saturating_sub(1)),
+             Move::StartOfLine => self.move_to_start_of_line(),
+             Move::EndOfLine => self.move_to_end_of_line(),
+         }
+         self.scroll_text_location_into_view();
+    }
+
     /// 加载文件。
-    pub fn load(&mut self, file_name: &str) {
-        if let Ok(buffer) = Buffer::load(file_name) {
-            self.buffer = buffer;
-            self.set_needs_redraw(true);
-        }
+    pub fn load(&mut self, file_name: &str) -> Result<(), Error> {
+        let buffer = Buffer::load(file_name)?;
+        self.buffer = buffer;
+        self.set_needs_redraw(true);
+        Ok(())
     }
 
     // ==================== 文本编辑相关方法 ====================
@@ -101,7 +111,7 @@ impl View {
             .map_or(0, Line::grapheme_count);
         let grapheme_delta = new_len.saturating_sub(old_len);
         if grapheme_delta > 0 {
-            self.move_text_location(Direction::Right);
+            self.handle_move_command(Move::Right);
         }
         self.set_needs_redraw(true);
     }
@@ -109,19 +119,19 @@ impl View {
     /// 插入新行
     fn insert_newline(&mut self) {
         self.buffer.insert_newline(self.text_location);
-        self.move_text_location(Direction::Right);
+        self.handle_move_command(Move::Right);
         self.set_needs_redraw(true);
     }
 
     /// 文件保存
-    fn save(&mut self) {
-        let _ = self.buffer.save();
+    pub fn save(&mut self) -> Result<(), Error> {
+        self.buffer.save()
     }
 
     /// 删除光标左侧的字符。
     fn delete_backward(&mut self) {
         if self.text_location.line_index != 0 || self.text_location.grapheme_index != 0 {
-            self.move_left();
+            self.handle_move_command(Move::Left);
             self.delete();
         }
     }
@@ -133,22 +143,6 @@ impl View {
     }
 
     // ==================== 光标移动相关方法 ====================
-
-    /// 移动光标位置。
-    fn move_text_location(&mut self, direction: Direction) {
-        let Size { height, .. } = self.size;
-        match direction {
-            Direction::Up => self.move_up(1),
-            Direction::Down => self.move_down(1),
-            Direction::Left => self.move_left(),
-            Direction::Right => self.move_right(),
-            Direction::PageUp => self.move_up(height.saturating_sub(1)),
-            Direction::PageDown => self.move_down(height.saturating_sub(1)),
-            Direction::Home => self.move_to_start_of_line(),
-            Direction::End => self.move_to_end_of_line(),
-        }
-        self.scroll_text_location_into_view();
-    }
 
     /// 光标向上移动
     fn move_up(&mut self, step: usize) {
